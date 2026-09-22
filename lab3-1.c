@@ -1,212 +1,79 @@
-
-#include <stdio.h>
-#include "NUC100Series.h"
+//
+// GPIO_7seg_keypad : 3x3 keypad inpt and display on 7-segment LEDs
+//
+#include #include "NUC100Series.h"
 #include "MCU_init.h"
 #include "SYS_init.h"
+#include "Seven_Segment.h"
 #include "Scankey.h"
 
-
-void OpenSevenSegment(void);
-void ShowSevenSegment(uint8_t no, uint8_t number);
-void CloseSevenSegment(void);
-
-
-extern uint8_t SEG_BUF[16];
-
-
-
-void ForceShowDigit(uint8_t no, uint8_t number)
+// display an integer on four 7-segment LEDs
+// delay 0.02 s
+void Display_7seg(uint16_t value)
 {
-    uint8_t temp, i;
+    uint8_t digit;
+    digit = value / 1000;
+    CloseSevenSegment();
+    ShowSevenSegment(3,digit);
+    CLK_SysTickDelay(5000);
 
-    temp = SEG_BUF[number];
+    value = value - digit * 1000;
+    digit = value / 100;
+    CloseSevenSegment();
+    ShowSevenSegment(2,digit);
+    CLK_SysTickDelay(5000);
 
-    for(i = 0; i < 8; i++)
-    {
-        if(temp & 0x01)
-        {
-            switch(i)
-            {
-                case 0: PE0=1; break;
-                case 1: PE1=1; break;
-                case 2: PE2=1; break;
-                case 3: PE3=1; break;
-                case 4: PE4=1; break;
-                case 5: PE5=1; break;
-                case 6: PE6=1; break;
-                case 7: PE7=1; break;
-            }
-        }
-        else
-        {
-            switch(i)
-            {
-                case 0: PE0=0; break;
-                case 1: PE1=0; break;
-                case 2: PE2=0; break;
-                case 3: PE3=0; break;
-                case 4: PE4=0; break;
-                case 5: PE5=0; break;
-                case 6: PE6=0; break;
-                case 7: PE7=0; break;
-            }
-        }
+    value = value - digit * 100;
+    digit = value / 10;
+    CloseSevenSegment();
+    ShowSevenSegment(1,digit);
+    CLK_SysTickDelay(5000);
 
-        temp >>= 1;
-    }
-
-
-    switch(no)
-    {
-        case 0: PC4=1; break;
-        case 1: PC5=1; break;
-        case 2: PC6=1; break;
-        case 3: PC7=1; break;
-    }
+    value = value - digit * 10;
+    digit = value;
+    CloseSevenSegment();
+    ShowSevenSegment(0,digit);
+    CLK_SysTickDelay(5000);
 }
-
-
-
-void Display_Stopwatch(uint8_t min, uint8_t sec)
-{
-    uint8_t digit3;
-    uint8_t digit2;
-    uint8_t digit1;
-    uint8_t digit0;
-
-
-    digit3 = min / 10;
-    digit2 = min % 10;
-    digit1 = sec / 10;
-    digit0 = sec % 10;
-
-
-
-    CloseSevenSegment();
-    ForceShowDigit(3, digit3);
-    CLK_SysTickDelay(2500);
-
-
-    CloseSevenSegment();
-    ForceShowDigit(2, digit2);
-    CLK_SysTickDelay(2500);
-
-
-
-    CloseSevenSegment();
-    ForceShowDigit(1, digit1);
-    CLK_SysTickDelay(2500);
-
-
-    CloseSevenSegment();
-    ForceShowDigit(0, digit0);
-    CLK_SysTickDelay(2500);
-}
-
-
 
 int main(void)
 {
-    uint16_t key_pressed;
-    uint16_t last_key = 0;
+    int time = 0;
+    int mode = 0;
+    int minute = 0;
+    int sec = 0;
+    int count = 0;
 
-    int state = 0;
-
-
-    uint8_t seconds = 50;
-    uint8_t minutes = 0;
-
-    uint32_t loop_tick = 0;
-
+    uint16_t i;
 
     SYS_Init();
     OpenSevenSegment();
     OpenKeyPad();
 
+    while(1) {
+        i=ScanKey();
 
-    while(1)
-    {
-
-        key_pressed = ScanKey();
-
-
-        if(key_pressed != 0 && last_key == 0)
-        {
-
-            if(state == 0)
-            {
-
-                if(key_pressed == 1)
-                {
-                    state = 1;
-                    loop_tick = 0;
-                }
-            }
-
-
-
-            else if(state == 1)
-            {
-
-                if(key_pressed == 2)
-                {
-                    state = 2;
-                }
-
-
-                else if(key_pressed == 3)
-                {
-                    state = 0;
-
-                    seconds = 0;
-                    minutes = 0;
-                    loop_tick = 0;
-                }
-            }
-
-            else if(state == 2)
-            {
-                if(key_pressed == 1)
-                {
-                    state = 1;
-                }
-                else if(key_pressed == 3)
-                {
-                    state = 0;
-
-                    seconds = 0;
-                    minutes = 0;
-                    loop_tick = 0;
-                }
-            }
+        if(i == 1){
+            mode = 1;
+        }else if(i == 2){
+            mode = 2;
+        }else if(i == 3){
+            mode = 3;
+            time = 0;
+            count = 0;
         }
 
-        last_key = key_pressed;
+        minute = time / 60;
+        sec = time % 60;
+        Display_7seg(minute * 100 + sec);
 
-        if(state == 1)
-        {
-            loop_tick++;
+        if(mode == 1){
+            count++;
 
-            if(loop_tick >= 100)
-            {
-                loop_tick = 0;
-
-                seconds++;
-
-                if(seconds >= 60)
-                {
-                    seconds = 0;
-
-                    minutes++;
-
-                    if(minutes >= 100)
-                    {
-                        minutes = 0;
-                    }
-                }
+            if(count >= 50){ // 50 * 0.02 = 1 所以才會是 1 秒
+                num++;
+                count = 0;
             }
         }
-
-        Display_Stopwatch(minutes, seconds);
     }
 }
