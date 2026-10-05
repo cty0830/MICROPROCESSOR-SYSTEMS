@@ -71,7 +71,7 @@ int main(void)
             count++;
 
             if(count >= 50){ // 50 * 0.02 = 1 所以才會是 1 秒
-                num++;
+                time++;
                 count = 0;
             }
         }
